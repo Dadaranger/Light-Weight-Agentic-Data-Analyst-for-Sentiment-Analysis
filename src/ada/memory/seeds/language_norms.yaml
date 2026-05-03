@@ -1,0 +1,51 @@
+# Cross-cutting language norms, bundled as seeds.
+# Loaded once; merged into `DomainKnowledge` only when a domain explicitly
+# declares its language.
+#
+# Keys are BCP-47 language tags. Values are hints, not hard constraints —
+# the agent should treat them as starting context, not ground truth.
+
+zh-TW:
+  tokenizer: jieba
+  jieba_dict_extras:
+    # Taiwan-specific terms missing from default Jieba dict
+    - ["颱風", 100, "n"]
+    - ["蘇花改", 50, "n"]
+    - ["紓困", 80, "n"]
+  stopwords_extra: ["的", "了", "是", "在", "和", "也", "都", "就", "要"]
+  platform_norms:
+    PTT:
+      demographic: "predominantly male university students, ages 18-30"
+      text_norm: "long-form threaded discussion, 推/噓 voting"
+      coordination_baseline: "high reply chains are normal; watch for ID-block voting"
+    Dcard:
+      demographic: "university-verified accounts, ages 18-25"
+      text_norm: "anonymous personal narratives, board-segmented"
+    LINE_社群:
+      demographic: "community groups, often older skew"
+      text_norm: "forwarded chain messages dominate; 緊急轉傳 prefix is cultural, not necessarily coordinated"
+    Facebook:
+      demographic: "broad demographic, public-facing"
+      text_norm: "mixed; reply structure visible"
+  sarcasm_seeds:
+    - pattern: "感謝(政府|官員)"
+      polarity_flip: positive_to_negative
+      example: "感謝政府的英明決策"
+      confidence: 0.65
+
+zh-CN:
+  tokenizer: jieba
+  stopwords_extra: ["的", "了", "是", "在", "和", "也", "都", "就", "要"]
+
+en:
+  tokenizer: spacy_en_core_web_sm
+  stopwords_extra: []
+  sarcasm_seeds:
+    - pattern: "(thanks|wow|great), (government|gov)"
+      polarity_flip: positive_to_negative
+      example: "thanks government, very cool"
+      confidence: 0.55
+
+ja:
+  tokenizer: fugashi
+  stopwords_extra: ["の", "に", "は", "を", "が", "と"]

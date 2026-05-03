@@ -1,0 +1,57 @@
+[project]
+name = "agentic-data-analyst"
+version = "0.0.1"
+description = "Agentic Data Analyst for Sentiment Analysis — a LangGraph application for end-to-end sentiment/topic/narrative analysis with human-in-the-loop domain expertise."
+requires-python = ">=3.11"
+
+dependencies = [
+    # Graph + LLM
+    "langgraph>=0.2.0",
+    "langchain-core>=0.3.0",
+    "langchain-ollama>=0.2.0",
+
+    # Data
+    "pandas>=2.2.0",
+    "polars>=1.0.0",
+    "pyarrow>=15.0.0",
+    "numpy>=1.26.0",
+
+    # Schema + config
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.4.0",
+    "pyyaml>=6.0",
+
+    # NLP
+    "sentence-transformers>=3.0.0",
+    "bertopic>=0.16.0",
+    "umap-learn>=0.5.6",
+    "hdbscan>=0.8.36",
+    "jieba>=0.42.1",
+    "langdetect>=1.0.9",
+
+    # Viz
+    "matplotlib>=3.8.0",
+    "seaborn>=0.13.0",
+
+    # CLI / UI
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+]
+
+[project.optional-dependencies]
+ui = ["streamlit>=1.36.0"]
+dev = ["pytest>=8.0", "ruff>=0.5.0", "mypy>=1.10"]
+
+[project.scripts]
+ada = "ada.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ada"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
