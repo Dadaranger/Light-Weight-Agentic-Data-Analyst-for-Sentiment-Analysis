@@ -23,7 +23,7 @@ import streamlit as st
 
 from ada.i18n import t_ui
 from ada.ui import state as ui_state
-from ada.ui.pages import hitl, progress, report, start
+from ada.ui.views import hitl, progress, report, start
 
 
 def _sidebar() -> None:

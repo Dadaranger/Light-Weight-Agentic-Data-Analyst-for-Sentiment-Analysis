@@ -1,0 +1,21 @@
+# Streamlit settings for the Agentic Data Analyst UI.
+# These apply automatically when streamlit is launched from this project root.
+
+[server]
+# Disable the source-file watcher. Without this, Streamlit walks every loaded
+# module (including the entire `transformers` package) on each rerun, which
+# triggers torchvision-related ModuleNotFoundError noise from transformers'
+# lazy imports of vision-language models. We don't need hot-reload for an
+# end-user app, and contributors editing src/ada/ can simply restart streamlit.
+fileWatcherType = "none"
+
+# Don't open the browser automatically — many users prefer to click the URL
+# themselves, especially when running over SSH or in containers.
+headless = false
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+# Light theme is more readable for long Chinese reports.
+base = "light"
