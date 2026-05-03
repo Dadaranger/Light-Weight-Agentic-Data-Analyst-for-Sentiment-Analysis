@@ -20,6 +20,7 @@ def _build_registry() -> dict[Stage, NodeFn]:
     from ada.nodes.reshape import reshape_node
     from ada.nodes.schema_infer import schema_infer_node
     from ada.nodes.sentiment import sentiment_node
+    from ada.nodes.topic import topic_node
     return {
         Stage.INGEST: ingest_node,
         Stage.SCHEMA_INFER: schema_infer_node,
@@ -28,6 +29,7 @@ def _build_registry() -> dict[Stage, NodeFn]:
         Stage.CLEAN: clean_node,
         Stage.PREPROCESS: preprocess_node,
         Stage.SENTIMENT: sentiment_node,
+        Stage.TOPIC: topic_node,
     }
 
 

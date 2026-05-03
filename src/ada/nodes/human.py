@@ -8,7 +8,10 @@ state field, then move the question from `pending_questions` to
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable
+
+import pandas as pd
 
 from ada.state import (
     DatasetSchema,
@@ -39,8 +42,36 @@ def _handle_schema_confirm(state: GraphState, q: HumanQuestion, resp: dict) -> d
     return {}
 
 
+def _handle_topic_label(state: GraphState, q: HumanQuestion, resp: dict) -> dict:
+    """Response shape: { "labels": {topic_id_str: label_str}, "approved": bool }.
+    Updates the analyst_label column in the topic parquet so downstream stages
+    (narrative, brief) read the human-confirmed labels.
+    """
+    if not resp.get("approved", True):
+        return {}
+    labels = resp.get("labels") or (q.proposal or {}).get("labels") or {}
+    if not labels:
+        return {}
+
+    topic_artifact = state.artifacts.get(Stage.TOPIC)
+    if topic_artifact is None or not topic_artifact.parquet_path:
+        return {}
+    parquet_path = Path(topic_artifact.parquet_path)
+    df = pd.read_parquet(parquet_path)
+    df["analyst_label"] = (
+        df["topic_id"].astype(str).map(labels).fillna(df.get("analyst_label"))
+    )
+    df.to_parquet(parquet_path, index=False)
+
+    # Refresh artifact's summary so the audit reflects confirmed labels
+    new_summary = {**topic_artifact.summary_stats, "confirmed_labels": labels}
+    new_artifact = topic_artifact.model_copy(update={"summary_stats": new_summary})
+    return {"artifacts": {**state.artifacts, Stage.TOPIC: new_artifact}}
+
+
 HANDLERS: dict[tuple[Stage, QuestionType], Handler] = {
     (Stage.SCHEMA_INFER, QuestionType.CONFIRM): _handle_schema_confirm,
+    (Stage.TOPIC, QuestionType.LABEL): _handle_topic_label,
 }
 
 
