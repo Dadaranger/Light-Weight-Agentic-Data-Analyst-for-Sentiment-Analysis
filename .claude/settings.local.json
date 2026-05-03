@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pip install --quiet 'jieba>=0.42.1' 'langdetect>=1.0.9')"
+    ]
+  }
+}
