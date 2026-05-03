@@ -7,7 +7,7 @@ state field, then move the question from `pending_questions` to
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from ada.state import (
@@ -62,7 +62,7 @@ def integrate_response(state: GraphState, question: HumanQuestion, resp: Any) ->
     response_obj = HumanResponse(
         question_id=question.question_id,
         response=resp,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         persist_to_memory=bool(resp.get("persist_to_memory", False)),
     )
     patch["pending_questions"] = [

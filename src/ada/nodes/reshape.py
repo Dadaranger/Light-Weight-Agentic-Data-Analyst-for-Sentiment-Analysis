@@ -6,7 +6,7 @@ explode, melt) lands in a later slice.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -84,7 +84,7 @@ def reshape_node(state: GraphState) -> dict:
     )
 
     audit = AuditEntry(
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         stage=Stage.RESHAPE,
         action="renamed and typed columns; wrote canonical parquet",
         affected_rows=int(len(df)),

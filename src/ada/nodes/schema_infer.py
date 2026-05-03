@@ -2,16 +2,24 @@
 
 The planner sees the pending question and emits ASK_HUMAN. After the human
 confirms, `confirmed_schema` is set and the planner moves on to reshape.
+
+Falls back to a heuristic when the LLM is unavailable, mirroring the planner's
+graceful-degradation pattern. Heuristic results are flagged in the audit so
+the human knows to scrutinize them.
 """
 from __future__ import annotations
 
 import json
+import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+
+import pandas as pd
 
 from ada.llm.client import call_json
 from ada.state import (
     AuditEntry,
+    ColumnProfile,
     DatasetSchema,
     GraphState,
     HumanQuestion,
@@ -48,20 +56,126 @@ def _memory_block(state: GraphState) -> str:
     )
 
 
+_DATETIMELIKE = re.compile(
+    r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}([ T]\d{1,2}:\d{2})?"
+)
+_NUMERIC = re.compile(r"^-?\d+(\.\d+)?$")
+_HAS_CJK = re.compile(r"[㐀-鿿]")
+_TRADITIONAL_INDICATORS = re.compile(
+    r"[颱這個們麼說發點時間實國灣]"
+)
+
+
+def _heuristic_schema(profiles: list[ColumnProfile]) -> dict:
+    """Rule-based schema inference. Used when the LLM is unavailable."""
+    by_name = {p.name: p for p in profiles}
+
+    def looks_datetime(p: ColumnProfile) -> bool:
+        return sum(1 for s in p.sample_values if _DATETIMELIKE.match(s.strip())) >= max(
+            1, len(p.sample_values) // 2
+        )
+
+    def looks_numeric(p: ColumnProfile) -> bool:
+        return sum(1 for s in p.sample_values if _NUMERIC.match(s.strip())) >= max(
+            1, len(p.sample_values) // 2
+        )
+
+    def avg_len(p: ColumnProfile) -> float:
+        if not p.sample_values:
+            return 0.0
+        return sum(len(s) for s in p.sample_values) / len(p.sample_values)
+
+    # id_col: highest unique_pct among string-shaped columns
+    id_candidates = sorted(
+        [p for p in profiles if not looks_datetime(p) and not looks_numeric(p)],
+        key=lambda p: -p.unique_pct,
+    )
+    id_col = id_candidates[0].name if id_candidates and id_candidates[0].unique_pct > 80 else None
+    if id_col is None and profiles:
+        id_col = max(profiles, key=lambda p: p.unique_pct).name
+
+    # text_col: highest average sample length, excluding the id column
+    text_candidates = [
+        p for p in profiles
+        if p.name != id_col and not looks_datetime(p) and not looks_numeric(p)
+    ]
+    text_col = max(text_candidates, key=avg_len).name if text_candidates else id_col
+
+    # timestamp_col: any column whose samples parse as datetime
+    timestamp_col = next((p.name for p in profiles if looks_datetime(p)), None)
+
+    # engagement_col: numeric column
+    engagement_col = next(
+        (p.name for p in profiles if looks_numeric(p) and p.name not in {id_col}),
+        None,
+    )
+
+    # platform_col / author_col: low-cardinality enums (≤ 20 unique, not text/id)
+    enum_cols = [
+        p for p in profiles
+        if p.unique_pct <= 5  # rough enum threshold
+        and p.name not in {id_col, text_col, timestamp_col, engagement_col}
+        and not looks_numeric(p)
+    ]
+    # Heuristic: column name hints
+    platform_col = None
+    author_col = None
+    for p in enum_cols:
+        nm = p.name.lower()
+        if platform_col is None and any(k in nm for k in ("platform", "source", "平台", "channel")):
+            platform_col = p.name
+        elif author_col is None and any(k in nm for k in ("author", "user", "帳號", "type", "role")):
+            author_col = p.name
+    # Fallback: first two enum cols
+    remaining = [p.name for p in enum_cols if p.name not in {platform_col, author_col}]
+    if platform_col is None and remaining:
+        platform_col = remaining.pop(0)
+    if author_col is None and remaining:
+        author_col = remaining.pop(0)
+
+    # Language: scan text samples
+    text_samples = " ".join(by_name[text_col].sample_values) if text_col else ""
+    if _HAS_CJK.search(text_samples):
+        language = "zh-TW" if _TRADITIONAL_INDICATORS.search(text_samples) else "zh"
+    else:
+        language = "en"  # weak default
+
+    return {
+        "id_col": id_col,
+        "text_col": text_col,
+        "language": language,
+        "timestamp_col": timestamp_col,
+        "author_col": author_col,
+        "engagement_col": engagement_col,
+        "platform_col": platform_col,
+        "extra_dims": {},
+        "ambiguities": [],
+        "confidence": "MODERATE",
+        "needs_human": True,
+        "needs_reshape": False,
+        "reshape_hints": [],
+        "_heuristic": True,
+    }
+
+
 def schema_infer_node(state: GraphState) -> dict:
     raw_count = state.artifacts[Stage.INGEST].summary_stats.get("row_count", 0)
 
-    raw = call_json(
-        "planner",
-        "schema_inference",
-        raw_file_path=str(state.raw_file_path),
-        row_count=raw_count,
-        user_initial_prompt=state.user_initial_prompt or "—",
-        relevant_memory_excerpt=_memory_block(state),
-    )
+    used_heuristic = False
+    try:
+        raw = call_json(
+            "planner",
+            "schema_inference",
+            raw_file_path=str(state.raw_file_path),
+            row_count=raw_count,
+            user_initial_prompt=state.user_initial_prompt or "—",
+            relevant_memory_excerpt=_memory_block(state),
+        )
+    except Exception as e:
+        raw = _heuristic_schema(state.raw_columns)
+        raw["_llm_error"] = f"{type(e).__name__}: {str(e)[:120]}"
+        used_heuristic = True
 
-    # LLM returns either two sibling objects merged, or two top-level keys.
-    # Be tolerant: allow flat or {"schema": ..., "meta": ...} shapes.
     if "error" in raw:
         raise RuntimeError(f"schema_inference failed: {raw['error']} — {raw.get('message', '')}")
 
@@ -82,22 +196,25 @@ def schema_infer_node(state: GraphState) -> dict:
     needs_reshape = bool(raw.get("needs_reshape", False))
     reshape_hints = raw.get("reshape_hints", [])
 
+    source = "heuristic (LLM unavailable)" if used_heuristic else "LLM"
     artifact = StageArtifact(
         stage=Stage.SCHEMA_INFER,
         summary_stats={
+            "source": source,
             "confidence": confidence,
             "needs_human": needs_human,
             "needs_reshape": needs_reshape,
             "ambiguity_count": len(ambiguities),
+            **({"llm_error": raw["_llm_error"]} if used_heuristic else {}),
         },
-        notes=f"LLM proposed schema; confidence={confidence}; "
+        notes=f"{source} proposed schema; confidence={confidence}; "
               f"reshape_hints={len(reshape_hints)}",
     )
 
     audit = AuditEntry(
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         stage=Stage.SCHEMA_INFER,
-        action="proposed schema",
+        action=f"proposed schema via {source}",
         reason=f"confidence={confidence}, ambiguities={len(ambiguities)}",
     )
 

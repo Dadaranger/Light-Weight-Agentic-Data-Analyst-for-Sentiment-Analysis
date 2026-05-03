@@ -5,7 +5,7 @@ a tiny synthetic CSV so no real data is needed.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
@@ -93,7 +93,7 @@ def test_slice1_end_to_end(tiny_csv, project_dir):
     state = GraphState(
         run_id=run_id,
         project_name="_test",
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
         user_initial_prompt="taiwan typhoon test data",
         raw_file_path=tiny_csv.resolve(),
         domain_knowledge=load_domain("_test"),
@@ -153,7 +153,7 @@ def test_slice1_end_to_end(tiny_csv, project_dir):
     assert "post_text" not in df.columns
     # Types
     assert pd.api.types.is_datetime64_any_dtype(df["ts"]), "ts should be datetime"
-    assert df["id"].dtype == object  # string
+    assert pd.api.types.is_string_dtype(df["id"])
     assert pd.api.types.is_numeric_dtype(df["engagement"])
 
     # Audit log spans all three stages

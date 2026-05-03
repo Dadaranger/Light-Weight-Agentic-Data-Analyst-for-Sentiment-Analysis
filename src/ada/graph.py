@@ -43,11 +43,10 @@ def planner_router(state: GraphState) -> str:
         return "planner"
     if decision.action == PlannerAction.RUN_NODE:
         assert decision.next_stage is not None, "RUN_NODE requires next_stage"
-        target = f"stage:{decision.next_stage.value}"
         if decision.next_stage not in NODE_REGISTRY:
             # Unimplemented stage → finish gracefully so the planner doesn't loop.
             return END
-        return target
+        return f"stage_{decision.next_stage.value}"
     raise ValueError(f"Unknown planner action: {decision.action}")
 
 
@@ -97,18 +96,18 @@ def build_graph() -> StateGraph:
     g.add_node("planner", planner_node)
     g.add_node("human_gate", human_gate_node)
     for stage in Stage:
-        g.add_node(f"stage:{stage.value}", make_stage_node(stage))
+        g.add_node(f"stage_{stage.value}", make_stage_node(stage))
 
     g.add_edge(START, "planner")
 
-    edge_map = {f"stage:{s.value}": f"stage:{s.value}" for s in Stage}
+    edge_map = {f"stage_{s.value}": f"stage_{s.value}" for s in Stage}
     edge_map["human_gate"] = "human_gate"
     edge_map["planner"] = "planner"
     edge_map[END] = END
     g.add_conditional_edges("planner", planner_router, edge_map)
     g.add_edge("human_gate", "planner")
     for stage in Stage:
-        g.add_edge(f"stage:{stage.value}", "planner")
+        g.add_edge(f"stage_{stage.value}", "planner")
 
     return g
 

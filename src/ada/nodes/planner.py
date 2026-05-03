@@ -10,7 +10,7 @@ Two-phase logic:
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ada.llm.client import call_json
 from ada.state import (
@@ -179,7 +179,7 @@ def planner_node(state: GraphState) -> dict:
         prev_rev = state.plan.revision if state.plan else 0
         patch["plan"] = ExecutionPlan(
             stages=decision.new_plan,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             revision=prev_rev + 1,
             rationale=decision.reasoning,
         )

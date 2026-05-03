@@ -8,7 +8,7 @@ Outputs:
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ada.state import (
     AuditEntry,
@@ -42,7 +42,7 @@ def ingest_node(state: GraphState) -> dict:
     )
 
     audit = AuditEntry(
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         stage=Stage.INGEST,
         action="loaded raw file",
         affected_rows=int(len(df)),

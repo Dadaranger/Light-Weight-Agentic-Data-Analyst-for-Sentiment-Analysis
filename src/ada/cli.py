@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -91,7 +91,7 @@ def run(
     state = GraphState(
         run_id=run_id,
         project_name=project,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
         user_initial_prompt=prompt,
         raw_file_path=file.resolve(),
         domain_knowledge=load_domain(project),
