@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m pip install --quiet 'jieba>=0.42.1' 'langdetect>=1.0.9')"
+      "Bash(python -m pip install --quiet 'jieba>=0.42.1' 'langdetect>=1.0.9')",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONUTF8=1 PYTHONPATH=src python -m ada.cli run \"/c/Users/akato/Desktop/Sentiment Analysis Course Materials/Week2_Day_1_Lab/Instructor Demo/tw_posts_dataset.csv\" --project typhoon_krathon --prompt \"Taiwan typhoon Krathon social media analysis\" --auto-confirm)"
     ]
   }
 }
