@@ -39,11 +39,12 @@ def _canonical_path(state: GraphState) -> "pd.io.common._PathLike":
 
 
 def reshape_node(state: GraphState) -> dict:
+    from pathlib import Path
     schema = state.confirmed_schema
     if schema is None:
         raise RuntimeError("reshape requires confirmed_schema; planner should have waited for HITL")
 
-    df = load_dataset(state.raw_file_path)
+    df = load_dataset(Path(state.raw_file_path))
 
     # Build rename map from confirmed schema
     rename_map: dict[str, str] = {}
@@ -71,7 +72,7 @@ def reshape_node(state: GraphState) -> dict:
 
     artifact = StageArtifact(
         stage=Stage.RESHAPE,
-        parquet_path=out_path,
+        parquet_path=str(out_path),
         parquet_hash=canonical_hash,
         summary_stats={
             "row_count": int(len(df)),
@@ -89,12 +90,12 @@ def reshape_node(state: GraphState) -> dict:
         action="renamed and typed columns; wrote canonical parquet",
         affected_rows=int(len(df)),
         reason="schema confirmed; minimal reshape (Slice 1)",
-        artifact_path=out_path,
+        artifact_path=str(out_path),
         artifact_hash=canonical_hash,
     )
 
     return {
-        "canonical_data_path": out_path,
+        "canonical_data_path": str(out_path),
         "canonical_hash": canonical_hash,
         "artifacts": {**state.artifacts, Stage.RESHAPE: artifact},
         "audit_log": [*state.audit_log, audit],

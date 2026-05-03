@@ -7,9 +7,17 @@
 from __future__ import annotations
 
 import json
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
+
+# Suppress LangGraph's "unregistered type" deserialization warnings — they're
+# informational about a future API change, not a current correctness issue.
+warnings.filterwarnings(
+    "ignore",
+    message="Deserializing unregistered type.*",
+)
 
 import typer
 from langgraph.checkpoint.memory import MemorySaver
@@ -19,7 +27,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from ada.config import settings
-from ada.graph import compile_graph
+from ada.graph import _ada_serializer, compile_graph
 from ada.memory.store import load_domain
 from ada.state import GraphState, PlannerAction
 
@@ -28,7 +36,7 @@ console = Console()
 
 # Single in-process checkpointer so `run` and `resume` share state during testing.
 # For a production deploy, use SqliteSaver pointed at projects/<name>/runs/<run_id>.db.
-_CHECKPOINTER = MemorySaver()
+_CHECKPOINTER = MemorySaver(serde=_ada_serializer())
 
 
 def _print_decision(decision):
@@ -51,16 +59,24 @@ def _print_question(payload: dict):
 
 
 def _stream(graph, input_, config):
-    """Stream graph events; print decisions; surface interrupts."""
+    """Stream graph events; print decisions; surface interrupts.
+
+    Uses `stream_mode="updates"` so we only see node-by-node patches —
+    decisions print exactly once, when the planner emits them.
+    """
     interrupted = False
-    for event in graph.stream(input_, config=config, stream_mode="values"):
-        decision = event.get("last_decision") if isinstance(event, dict) else None
-        _print_decision(decision)
+    for event in graph.stream(input_, config=config, stream_mode="updates"):
+        # event shape: {node_name: state_patch_dict}
+        for node_name, patch in event.items():
+            if not isinstance(patch, dict):
+                continue
+            decision = patch.get("last_decision")
+            if decision is not None:
+                _print_decision(decision)
 
     # Check final state for interrupts
     snapshot = graph.get_state(config)
-    if snapshot.next:  # graph is paused (interrupt or pending node)
-        # When interrupted, snapshot.tasks contains the pending interrupt payload
+    if snapshot.next:
         for task in snapshot.tasks:
             if task.interrupts:
                 interrupted = True
@@ -93,7 +109,7 @@ def run(
         project_name=project,
         started_at=datetime.now(timezone.utc),
         user_initial_prompt=prompt,
-        raw_file_path=file.resolve(),
+        raw_file_path=str(file.resolve()),
         domain_knowledge=load_domain(project),
     )
     graph = compile_graph(checkpointer=_CHECKPOINTER)

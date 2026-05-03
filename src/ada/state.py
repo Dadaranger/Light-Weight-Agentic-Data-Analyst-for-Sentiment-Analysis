@@ -125,16 +125,18 @@ class AuditEntry(BaseModel):
     action: str
     affected_rows: int | None = None
     reason: str
-    artifact_path: Path | None = None
+    artifact_path: str | None = None  # str, not Path — for msgpack serialization
     artifact_hash: str | None = None
 
 
 class StageArtifact(BaseModel):
-    """One stage's outputs. Files only — no DataFrames."""
+    """One stage's outputs. Files only — no DataFrames.
+    Path-typed fields are stored as strings to keep state msgpack-serializable.
+    """
     stage: Stage
-    parquet_path: Path | None = None
+    parquet_path: str | None = None
     parquet_hash: str | None = None
-    figure_paths: list[Path] = Field(default_factory=list)
+    figure_paths: list[str] = Field(default_factory=list)
     summary_stats: dict[str, Any] = Field(default_factory=dict)
     notes: str = ""
 
@@ -272,7 +274,7 @@ class GraphState(BaseModel):
     user_initial_prompt: str = ""  # what the user said when launching the run
 
     # Inputs
-    raw_file_path: Path
+    raw_file_path: str
     raw_file_hash: str = ""
 
     # Schema discovery
@@ -280,7 +282,7 @@ class GraphState(BaseModel):
     proposed_schema: DatasetSchema | None = None
     confirmed_schema: DatasetSchema | None = None
     reshape_recipe: ReshapeRecipe | None = None
-    canonical_data_path: Path | None = None
+    canonical_data_path: str | None = None
     canonical_hash: str = ""
 
     # Domain memory (loaded at start, mutated only via approved diffs)
@@ -307,7 +309,7 @@ class GraphState(BaseModel):
     findings: list[BLUFFinding] = Field(default_factory=list)
 
     # Output
-    brief_path: Path | None = None
+    brief_path: str | None = None
 
     # Convenience accessors -----------------------------------------------------
 

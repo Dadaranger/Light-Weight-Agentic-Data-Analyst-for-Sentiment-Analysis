@@ -18,6 +18,7 @@ Each subgraph reads file paths and a confirmed schema from state, writes a
 from __future__ import annotations
 
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
@@ -112,7 +113,15 @@ def build_graph() -> StateGraph:
     return g
 
 
+def _ada_serializer() -> JsonPlusSerializer:
+    """Allow our state Pydantic models through msgpack roundtrips."""
+    return JsonPlusSerializer(
+        pickle_fallback=True,
+        allowed_msgpack_modules=True,  # internal app — trust all modules
+    )
+
+
 def compile_graph(checkpointer=None):
     if checkpointer is None:
-        checkpointer = MemorySaver()
+        checkpointer = MemorySaver(serde=_ada_serializer())
     return build_graph().compile(checkpointer=checkpointer)

@@ -95,7 +95,7 @@ def test_slice1_end_to_end(tiny_csv, project_dir):
         project_name="_test",
         started_at=datetime.now(timezone.utc),
         user_initial_prompt="taiwan typhoon test data",
-        raw_file_path=tiny_csv.resolve(),
+        raw_file_path=str(tiny_csv.resolve()),
         domain_knowledge=load_domain("_test"),
     )
 
@@ -141,8 +141,8 @@ def test_slice1_end_to_end(tiny_csv, project_dir):
     # Canonical parquet exists with expected columns
     canonical_path = values["canonical_data_path"]
     assert canonical_path is not None
-    assert Path(canonical_path).exists()
-    df = pd.read_parquet(canonical_path)
+    assert Path(str(canonical_path)).exists()
+    df = pd.read_parquet(str(canonical_path))
     assert "id" in df.columns
     assert "text" in df.columns
     assert "ts" in df.columns

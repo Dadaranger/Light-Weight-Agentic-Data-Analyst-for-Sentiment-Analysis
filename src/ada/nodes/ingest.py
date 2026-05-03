@@ -22,7 +22,8 @@ from ada.tools.profile import profile_columns
 
 
 def ingest_node(state: GraphState) -> dict:
-    raw_path = state.raw_file_path
+    from pathlib import Path
+    raw_path = Path(state.raw_file_path)
     file_hash = hash_file(raw_path)
     df = load_dataset(raw_path)
     profiles = profile_columns(df)
@@ -47,7 +48,7 @@ def ingest_node(state: GraphState) -> dict:
         action="loaded raw file",
         affected_rows=int(len(df)),
         reason="initial ingest",
-        artifact_path=raw_path,
+        artifact_path=str(raw_path),
         artifact_hash=file_hash,
     )
 
