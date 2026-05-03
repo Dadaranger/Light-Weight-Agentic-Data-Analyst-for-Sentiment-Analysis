@@ -55,9 +55,46 @@ docs/
   architecture.md        # Detailed design notes
 ```
 
+## Setup
+
+Project uses [uv](https://docs.astral.sh/uv/) for dependency management. All Python deps install into a project-local `.venv` — nothing pollutes your system Python.
+
+**One-time:**
+```
+setup.bat         # Windows
+./setup.sh        # Bash / WSL
+```
+This creates `.venv` (Python 3.13), installs all runtime + dev dependencies, and registers the `ada` package in editable mode. ~1.5 GB total (torch + sentence-transformers are the bulk).
+
+If you don't have uv yet:
+```
+# Windows
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# macOS / Linux / WSL
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+`requirements.txt` is a locked snapshot — useful for reproducing the exact environment elsewhere (`uv pip install -r requirements.txt`).
+
+## Running
+
+**UI (recommended):**
+```
+run_ui.bat        # Windows
+./run_ui.sh       # Bash / WSL
+```
+Opens the Streamlit app at http://localhost:8501. Four pages: 啟動分析 (upload + start) → 進度追蹤 (live audit log) → 人工確認 (HITL forms — schema, topic labels, sentiment calibration) → 分析報告 (BLUF brief in Traditional Chinese).
+
+**CLI (headless / scripting):**
+```
+run_cli.bat run path\to\data.csv --project mydomain --auto-confirm   # Windows
+./run_cli.sh run path/to/data.csv --project mydomain --auto-confirm  # Bash
+```
+
 ## Status
 
-Scaffolding only. State schema and planner prompt are designed. Node implementations are next, built as vertical slices (ingest → schema → EDA first).
+All five vertical slices implemented and tested end-to-end on the typhoon-Krathon dataset. UI in Traditional Chinese. Brief renders in zh-TW or English depending on the dataset's declared language.
 
 ## Provenance
 

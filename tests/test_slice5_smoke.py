@@ -218,19 +218,19 @@ def test_slice5_full_pipeline_to_brief(medium_csv, project_dir, low_min_topic_si
     assert brief_path.exists()
 
     text = brief_path.read_text(encoding="utf-8")
-    # Sanity-check the BLUF structure landed
+    # Schema declared zh-TW → brief renders in Traditional Chinese
     for header in (
-        "Section 1 — Key findings",
-        "Section 2 — Sentiment distribution",
-        "Section 3 — Topic / narrative registry",
-        "Section 4 — Amplification indicators",
-        "Section 5 — Analytic limitations",
-        "Section 6 — Recommendations",
+        "第一節 — 主要發現",
+        "第二節 — 情感分布",
+        "第三節 — 主題 / 敘事登錄表",
+        "第四節 — 放大行為指標",
+        "第五節 — 分析限制",
+        "第六節 — 後續建議",
     ):
         assert header in text, f"brief missing section header: {header}"
     assert "BLUF" in text
-    assert "CONFIDENCE" in text
-    assert "LIMITATION" in text
+    assert "信心等級" in text  # confidence label
+    assert "限制" in text  # limitation label
 
     # state.brief_path was set
     assert values.get("brief_path") == str(brief_path)

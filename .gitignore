@@ -3,7 +3,12 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+venv/
 .env
+
+# uv
+.uv-cache/
+uv.lock
 
 # Project artifacts
 projects/*/data/
