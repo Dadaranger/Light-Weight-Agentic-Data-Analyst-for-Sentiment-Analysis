@@ -1,7 +1,6 @@
 """Node registry — maps `Stage` enum to the node callable.
 
 Each node has signature `(state: GraphState) -> dict` and returns a state patch.
-Nodes are registered here as they're implemented (vertical-slice style).
 """
 from __future__ import annotations
 
@@ -13,9 +12,12 @@ NodeFn = Callable[[GraphState], dict]
 
 
 def _build_registry() -> dict[Stage, NodeFn]:
+    from ada.nodes.amplification import amplification_node
+    from ada.nodes.brief import brief_node
     from ada.nodes.clean import clean_node
     from ada.nodes.eda import eda_node
     from ada.nodes.ingest import ingest_node
+    from ada.nodes.narrative import narrative_node
     from ada.nodes.preprocess import preprocess_node
     from ada.nodes.reshape import reshape_node
     from ada.nodes.schema_infer import schema_infer_node
@@ -30,6 +32,9 @@ def _build_registry() -> dict[Stage, NodeFn]:
         Stage.PREPROCESS: preprocess_node,
         Stage.SENTIMENT: sentiment_node,
         Stage.TOPIC: topic_node,
+        Stage.NARRATIVE: narrative_node,
+        Stage.AMPLIFICATION: amplification_node,
+        Stage.BRIEF: brief_node,
     }
 
 
