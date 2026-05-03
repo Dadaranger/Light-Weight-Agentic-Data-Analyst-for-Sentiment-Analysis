@@ -23,6 +23,18 @@ def _normalize_stage(s):
     return s.value if hasattr(s, "value") else str(s)
 
 
+def _attr(obj, name, default=None):
+    """Read `name` from a Pydantic model OR a dict. Pydantic models don't
+    have `.get()`, so the previous `... or e.get(name)` fallback crashed
+    on non-None falsy values too. This helper is the single safe accessor.
+    """
+    if isinstance(obj, dict):
+        v = obj.get(name, default)
+    else:
+        v = getattr(obj, name, default)
+    return default if v is None else v
+
+
 def render() -> None:
     lang = st.session_state.language
     st.title(t_ui(lang, "progress_header"))
@@ -76,18 +88,17 @@ def render() -> None:
     if audit:
         rows = []
         for e in audit[-30:]:
-            ts = getattr(e, "timestamp", None) or e.get("timestamp")
-            stage = getattr(e, "stage", None) or e.get("stage")
-            stage_v = _normalize_stage(stage)
-            action = getattr(e, "action", None) or e.get("action")
-            rows_count = getattr(e, "affected_rows", None) or e.get("affected_rows")
-            reason = getattr(e, "reason", None) or e.get("reason")
+            ts = _attr(e, "timestamp")
+            stage_v = _normalize_stage(_attr(e, "stage"))
+            action = _attr(e, "action", "")
+            rows_count = _attr(e, "affected_rows")
+            reason = _attr(e, "reason", "")
             rows.append({
                 t_ui(lang, "audit_col_time"): str(ts)[11:19] if ts else "",
                 t_ui(lang, "audit_col_stage"): stage_label(lang, stage_v),
-                t_ui(lang, "audit_col_action"): action or "",
-                t_ui(lang, "audit_col_rows"): rows_count if rows_count else "",
-                t_ui(lang, "audit_col_reason"): reason or "",
+                t_ui(lang, "audit_col_action"): action,
+                t_ui(lang, "audit_col_rows"): rows_count if rows_count is not None else "",
+                t_ui(lang, "audit_col_reason"): reason,
             })
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
     else:
@@ -101,10 +112,10 @@ def render() -> None:
         for stage_key, art in artifacts.items():
             stage_v = _normalize_stage(stage_key)
             with st.expander(f"📦 {stage_label(lang, stage_v)}", expanded=False):
-                summary = getattr(art, "summary_stats", None) or art.get("summary_stats", {})
-                notes = getattr(art, "notes", None) or art.get("notes", "")
-                parquet = getattr(art, "parquet_path", None) or art.get("parquet_path")
-                figs = getattr(art, "figure_paths", None) or art.get("figure_paths", [])
+                summary = _attr(art, "summary_stats", {})
+                notes = _attr(art, "notes", "")
+                parquet = _attr(art, "parquet_path")
+                figs = _attr(art, "figure_paths", [])
                 if notes:
                     st.caption(notes)
                 if parquet:
